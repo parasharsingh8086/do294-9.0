@@ -1,0 +1,23 @@
+---
+- name: Install and start mariadb packages and service
+  hosts: database_prod
+  become: true
+  vars:
+    mariadb_packages:
+      - mariadb-server
+      - python3-PyMySQL
+
+  tasks:
+    - name: mariaDB packages are installed
+      ansible.builtin.dnf:
+        name: "{{ item }}"
+        state: present
+      loop: "{{mariadb_packages }}"
+      when: ansible_facts['distribution'] == "RedHat"
+
+    - name: start MariaDB service
+      ansible.builtin.systemd:
+        name: mariadb
+        state: started
+        enabled: true  
+

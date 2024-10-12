@@ -1,0 +1,19 @@
+---
+- name: Install Apache and start the service
+  hosts: webserver
+  become: true
+  tasks:
+    - name: set custom variable
+      ansible.builtin.set_fact:
+        custom: "{{ ansible_facts['ansible_local']['custom']['general'] }}"
+
+    - name: Install the required package
+      ansible.builtin.dnf:
+        name: "{{ custom['package'] }}"
+        state: latest
+
+    - name: start the service
+      ansible.builtin.service:
+        name: "{{ custom['service'] }}"
+        state: "{{ custom['state'] }}"
+        enabled: "{{ custom['enabled'] }}"

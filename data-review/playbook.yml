@@ -1,0 +1,107 @@
+---
+- name: Install and configure web server with Apache HTTP and basic Auth
+  hosts: webserver
+  become: true
+  vars:
+    - firewall_pkg: firewalld
+    - firewall_svc: firewalld
+    - web_pkg: httpd
+    - web_svc: httpd
+    - ssl_pkg: mod_ssl
+    - httpdconf_src: files/httpd.conf
+    - httpdconf_dest: /etc/httpd/conf/httpd.conf
+    - htaccess_src: files/.htaccess
+    - secret_dir: /etc/httpd/secrets
+    - secret_src: files/htpasswd
+    - secret_dest: "{{ secret_dir }}/htpasswd"
+    - web_root: /var/www/html
+
+  tasks:
+    - name: Install latest version of {{ firewall_pkg }} {{ web_pkg }} {{ ssl_pkg }}
+      ansible.builtin.dnf:
+        name:
+          - "{{ firewall_pkg }}"
+          - "{{ web_pkg }}"
+          - "{{ ssl_pkg }}"
+        state: latest
+
+    - name: Copy HTTPD config {{ httpdconf_src }} to {{ httpdconf_dest }}
+      ansible.builtin.copy:
+        src: "{{ httpdconf_src }}"
+        dest: "{{ httpdconf_dest }}"
+        mode: '0644'
+        owner: root
+        group: root
+
+    - name: Create {{ secret_dir }} and setup permissions
+      ansible.builtin.file:
+        path: "{{ secret_dir }}"
+        state: directory
+        owner: apache
+        group: apache
+        mode: '0500'
+
+    - name: Add htpasswd file
+      ansible.builtin.copy:
+        src: "{{ secret_src }}"
+        dest: "{{ secret_dest }}"
+        owner: apache
+        group: apache
+        mode: '0400'
+
+    - name: Create .htaccess file in document root dir
+      ansible.builtin.copy:
+        src: "{{ htaccess_src }}"
+        dest: "{{ web_root }}/.htaccess"
+        owner: apache
+        group: apache
+        mode: '0400'
+
+    - name: Create web Content file
+      ansible.builtin.copy:
+        dest: "{{ web_root }}/index.html"
+        content: >-
+          {{ ansible_facts['fqdn'] }}
+          ({{ ansible_facts['default_ipv4']['address'] }})
+          has been customized by Ansible.
+
+    - name: Enable and start {{ firewall_svc }}
+      ansible.builtin.service:
+        name: "{{ firewall_svc }}"
+        state: started
+
+    - name: Enable access to {{ web_svc }}
+      ansible.posix.firewalld:
+        service: https
+        permanent: true
+        immediate: true
+        state: enabled
+
+    - name: Enable and start {{ web_svc }}
+      ansible.builtin.service:
+        name: "{{ web_svc }}"
+        enabled: true
+        state: started
+
+- name: Test authentication to web server
+  hosts: workstation
+  vars:
+    - web_user: guest
+  vars_files:
+    - vars/secret.yml
+  become: false
+  tasks:
+    - name: Authenticate web server
+      ansible.builtin.uri:
+        url: https://serverb.lab.example.com
+        status_code: 200
+        validate_certs: false
+        force_basic_auth: true
+        user: "{{ web_user }}"
+        password: "{{ web_pass }}"
+        return_content: true
+      register: auth_test
+
+    - name: Print content returned by web server
+      ansible.builtin.debug:
+        var: auth_test['content']
