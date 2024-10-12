@@ -1,0 +1,39 @@
+---
+- name: Configure /etc/motd file
+  hosts: all
+  remote_user: devops
+  become: true
+  tasks:
+    - name: configure motd to remote host
+      ansible.builtin.template:
+        src: templates/motd.j2
+        dest: /etc/motd
+        owner: root
+        group: root
+        mode: '0644'
+
+    - name: copy files/issue to remote hosts
+      ansible.builtin.copy:
+        src: files/issue
+        dest: /etc/issue
+        owner: root
+        group: root
+        mode: '0644'
+
+    - name: verify that /etc/motd exist
+      ansible.builtin.stat:
+        path: /etc/motd
+      register: st
+
+    - name: display value of register
+      ansible.builtin.debug:
+        var: st
+
+    - name: ensure that /etc/issue.net is symbolic link to /etc/issue
+      ansible.builtin.file:
+        src: /etc/issue
+        dest: /etc/issue.net
+        owner: root
+        group: root
+        state: link
+        force: true
