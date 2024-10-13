@@ -1,0 +1,22 @@
+---
+# tasks file for myvhost
+- name: Install httpd package
+  ansible.builtin.dnf:
+    name: httpd
+    state: latest
+
+- name: Start httpd service
+  ansible.builtin.systemd:
+    name: httpd
+    enabled: true
+    state: started
+
+- name: vhost file is installed
+  ansible.builtin.template:
+    src: vhost.conf.j2
+    dest: /etc/httpd/conf.d/vhost.conf
+    owner: root
+    group: root
+    mode: 0644
+  notify:
+    - restart httpd
