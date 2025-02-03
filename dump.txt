@@ -116,3 +116,43 @@ Explanation:
  
  # ansible-playbook package.yml–-syntax-check
  # ansible-playbook package.yml
+
+
+
+Explanation:
+ Solution as:
+ # pwd
+ /home/admin/ansible
+ # vim lvm.yml
+ ---
+ - name:
+ hosts: all
+ ignore_errors: yes
+ tasks:
+ - name:
+ lvol:
+ lv: data
+ vg: research
+ size: "1500"
+ 
+ - debug:
+ msg: "VG Notfound"
+ when: ansible_lvm.vgs.research is not defined
+ 
+ - debug:
+     msg: "LV Can not be created with following size"
+   when: ansible_lvm.vgs.research.size_g < "1.5"
+   
+ - name:
+ lvol:
+ lv: data
+ vg: research
+ size: "800"
+ when: ansible_lvm.vgs.research.size_g < "1.5"
+ 
+ - name:
+ filesystem:
+ fstype: ext4
+ dev: /dev/research/data
+ :wq!
+ # ansible-playbook lvm.yml –-syntax-check
